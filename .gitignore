@@ -1,0 +1,12 @@
+# Reference extracted directory (do not commit to upstream)
+FPGA_Design_Fabric_Architecture-main/
+
+# OS and Editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.bak
+*.orig
+*~
+.vscode/
+.idea/
