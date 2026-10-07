@@ -104,4 +104,196 @@ This project presents a multi-stage exploration of modern FPGA flows:
 - **Day 4**: Open-source SkyWater 130nm SOFA fabric exploration.
 - **Day 5**: End-to-end mapping of the RISC-V processor onto custom SOFA silicon.
 
-*(Detailed technical logs for each day are documented in the subsequent sections)*
+---
+
+## Day 1 - FPGA Architectural Foundations & Xilinx Vivado Flow
+
+The primary goal of Day 1 is to master the commercial FPGA design cycle using the **Digilent Basys 3** development platform powered by the **Xilinx Artix-7 (XC7A35T-1CPG236C)** FPGA.
+
+### Target Hardware: Digilent Basys 3
+
+The Basys 3 is an entry-level development board designed specifically around the Artix-7 architecture:
+- **Logic Cells**: 33,280 (in 5,200 slices; each slice containing four 6-input LUTs and eight flip-flops)
+- **Fast Block RAM**: 1,800 Kbits
+- **Clock Management Tiles (CMT)**: 5 (each containing a PLL and Mixed-Mode Clock Manager - MMCM)
+- **DSP Slices**: 90 (18 x 25 multiplier blocks)
+- **Internal Clock Speed**: Exceeding 450 MHz
+
+<p align="center">
+  <img src="images/basys3_board.png" alt="Basys 3 Development Board Hardware Overview" width="750"/>
+  <br>
+  <em>Figure 3: Digilent Basys 3 Artix-7 Board Hardware Peripherals and Pin Assignment Map.</em>
+</p>
+
+#### Hardware Peripheral Map
+
+| Callout | Peripheral Component | Callout | Peripheral Component |
+| :---: | :--- | :---: | :--- |
+| **01** | Power Good Indicator LED | **09** | FPGA System Reset Button |
+| **02** | Pmod Header Group A | **10** | Programming Mode Jumper |
+| **03** | Pmod Header Group B | **11** | FTDI USB-JTAG / UART Interface |
+| **12** | 12-bit VGA Display Port | **04** | Four-Digit 7-Segment Display |
+| **13** | USB Host Interface (HID) | **05** | 16 Slide Switches (SW0 - SW15) |
+| **14** | External 5V Power Connector | **06** | 16 User LEDs (LD0 - LD15) |
+| **15** | Main Power Switch | **07** | 5 Pushbuttons (Center, U, D, L, R) |
+| **16** | Power Source Select Jumper | **08** | FPGA Configuration Done LED |
+
+---
+
+### RTL Design: 4-Bit Synchronous Counter with Clock Division
+
+Because the onboard oscillator generates a high-frequency **100 MHz clock** ($T = 10 \text{ ns}$), driving an LED counter directly would cause state transitions faster than human visual persistence. A clock division module is implemented in Verilog to generate an observable low-frequency clock.
+
+```verilog
+`timescale 1ns / 1ps
+
+module counter_clk_div #(
+    parameter integer DELAY_MAX = 212
+)(
+    input  wire       clk,
+    input  wire       rst,
+    output reg  [3:0] counter_out
+);
+    reg        div_clk;
+    reg [25:0] delay_count;
+
+    // Clock division logic
+    always @(posedge clk) begin
+        if (rst) begin
+            delay_count <= 26'd0;
+            div_clk     <= 1'b0;
+        end else begin
+            if (delay_count == DELAY_MAX) begin
+                delay_count <= 26'd0;
+                div_clk     <= ~div_clk;
+            end else begin
+                delay_count <= delay_count + 1'b1;
+            end
+        end
+    end
+
+    // 4-bit synchronous up-counter
+    always @(posedge div_clk) begin
+        if (rst) begin
+            counter_out <= 4'b0000;
+        end else begin
+            counter_out <= counter_out + 1'b1;
+        end
+    end
+endmodule
+```
+
+The mathematical relationship governing the divided frequency is:
+$$f_{\text{div}} = \frac{f_{\text{in}}}{2 \times (\text{DELAY\_MAX} + 1)}$$
+
+---
+
+### Behavioral Simulation & RTL Elaboration
+
+1. **Behavioral Simulation**: Verifies the functional correctness of the RTL before physical synthesis. The counter increments predictably on rising edges of `div_clk`, and resets synchronously when `rst` is asserted.
+
+<p align="center">
+  <img src="images/d1_counter_div_sim.png" alt="Behavioral Simulation Waveform" width="750"/>
+  <br>
+  <em>Figure 4: Vivado Behavioral Simulation verifying clock division and sequential counter counting.</em>
+</p>
+
+2. **RTL Elaboration**: Resolves Verilog hierarchies, instantiates primitives, checks connectivity, and builds the generic logical structure without technology-specific mapping.
+
+<p align="center">
+  <img src="images/d1_counter_div_elaborate_schematic.png" alt="Elaborated RTL Schematic" width="750"/>
+  <br>
+  <em>Figure 5: Elaborated Gate-Level Schematic of the counter and clock divider module.</em>
+</p>
+
+3. **I/O Planning**: Maps top-level module ports (`clk`, `rst`, `counter_out[3:0]`) to physical FPGA pins on the CPG236 package with appropriate I/O standards (`LVCMOS33`).
+
+<p align="center">
+  <img src="images/d1_counter_div_elaborate_io_planning.png" alt="Vivado I/O Planning and Pin Assignment" width="750"/>
+  <br>
+  <em>Figure 6: Vivado I/O Planning assigning ports to Artix-7 package pads.</em>
+</p>
+
+---
+
+### Logic Synthesis & Constraints
+
+Logic synthesis transforms the elaborated generic logic into an optimal gate-level netlist using target Artix-7 primitives (`LUT6`, `FDRE`, `CARRY4`, `IBUF`, `OBUF`).
+
+<p align="center">
+  <img src="images/d1_counter_div_synthesis_schematic.png" alt="Synthesized Gate-Level Schematic" width="750"/>
+  <br>
+  <em>Figure 7: Synthesized netlist mapped to Xilinx Artix-7 technology primitives.</em>
+</p>
+
+#### Timing Constraints (`basys3_master.xdc`)
+Constraints specify the physical and timing boundaries of the design, ensuring proper setup and hold slack closure:
+```tcl
+## 100 MHz Master System Clock Constraint (10 ns period)
+set_property PACKAGE_PIN W5 [get_ports clk]							
+set_property IOSTANDARD LVCMOS33 [get_ports clk]
+create_clock -add -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports clk]
+
+## Reset Pin Mapping
+set_property PACKAGE_PIN V17 [get_ports rst]					
+set_property IOSTANDARD LVCMOS33 [get_ports rst]
+
+## 4-bit Counter Output Pin Mapping (LEDs LD0 - LD3)
+set_property PACKAGE_PIN U16 [get_ports {counter_out[0]}]					
+set_property IOSTANDARD LVCMOS33 [get_ports {counter_out[0]}]
+set_property PACKAGE_PIN E19 [get_ports {counter_out[1]}]					
+set_property IOSTANDARD LVCMOS33 [get_ports {counter_out[1]}]
+set_property PACKAGE_PIN U19 [get_ports {counter_out[2]}]					
+set_property IOSTANDARD LVCMOS33 [get_ports {counter_out[2]}]
+set_property PACKAGE_PIN V19 [get_ports {counter_out[3]}]					
+set_property IOSTANDARD LVCMOS33 [get_ports {counter_out[3]}]
+```
+
+---
+
+### Implementation, Timing Closure & Power Analysis
+
+Physical implementation translates the synthesized netlist into the target FPGA fabric across three major phases:
+1. **Logic Optimization (`opt_design`)**: Prunes unused logic and optimizes constant nets.
+2. **Placement (`place_design`)**: Assigns logic primitives to specific CLB slices in the silicon floorplan.
+3. **Routing (`route_design`)**: Allocates routing tracks and programmable interconnect switches.
+
+#### Post-Implementation Timing Summary
+The design comfortably satisfies all timing requirements:
+- **Worst Negative Slack (WNS)**: Positive slack ($\gg 0\text{ ns}$), indicating zero setup violations.
+- **Worst Hold Slack (WHS)**: Positive slack, confirming zero hold-time violations.
+
+<p align="center">
+  <img src="images/d1_counter_div_implementation_timing_summary.png" alt="Implementation Timing Summary" width="750"/>
+  <br>
+  <em>Figure 8: Post-Implementation Timing Summary showing positive timing margins.</em>
+</p>
+
+#### Resource Utilization
+Device utilization shows minimal hardware consumption, leaving over 99% of Artix-7 resources available for additional logic:
+
+<p align="center">
+  <img src="images/d1_counter_div_implementation_utilization.png" alt="Device Utilization Summary" width="750"/>
+  <br>
+  <em>Figure 9: Artix-7 Device Utilization Summary (LUTs, FFs, I/O Buffers).</em>
+</p>
+
+#### On-Chip Power Dissipation
+Total on-chip power is partitioned into:
+- **Static Power**: Leakage power inherent to biased silicon transistors.
+- **Dynamic Power**: Power consumed due to capacitive charging/discharging during signal transitions:
+  $$P_{\text{dynamic}} = \alpha \cdot C_L \cdot V_{DD}^2 \cdot f$$
+
+<p align="center">
+  <img src="images/d1_counter_div_implementation_power.png" alt="On-Chip Power Analysis Report" width="750"/>
+  <br>
+  <em>Figure 10: On-chip power breakdown generated by Vivado Power Analyzer.</em>
+</p>
+
+---
+
+### In-System Debugging: Virtual Input/Output (VIO)
+
+In complex FPGA designs without sufficient physical switches or LEDs, the **Virtual Input/Output (VIO)** core provides an on-chip debugging interface. The VIO core runs directly in FPGA logic and communicates over the JTAG boundary scan chain, allowing designers to dynamically drive input signals and monitor internal registers via Vivado Hardware Manager in real time without recompilation.
+
+---
