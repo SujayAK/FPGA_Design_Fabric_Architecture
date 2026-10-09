@@ -460,3 +460,97 @@ Using the **45nm Predictive Technology Model (PTM)**, VTR models:
 </p>
 
 ---
+
+## Day 3 - RISC-V RV32I Core (RVMYTH) Implementation in Vivado
+
+Day 3 scales design complexity from a simple counter to a full **32-bit RISC-V microprocessor core**, named **RVMYTH**. RVMYTH is a 4-stage pipelined processor implementing the standard RV32I base integer instruction set.
+
+### Processor Microarchitecture
+
+The RVMYTH core features a classic 4-stage pipeline:
+1. **Instruction Fetch (IF)**: Computes next PC and retrieves 32-bit instruction words from instruction memory.
+2. **Instruction Decode (ID)**: Decodes opcode, funct3, and funct7 fields; reads source operands from the 32-register integer register file (`x0` - `x31`).
+3. **Execute (EX)**: Executes arithmetic, logical, shift, and branch comparisons via the ALU; computes memory addresses.
+4. **Writeback (WB)**: Writes ALU results or load data back into the destination register `rd`.
+
+The core was originally specified in **Transaction-Level Verilog (TL-Verilog)**—an emerging high-level hardware description language that eliminates explicit pipeline staging registers and reduces pipeline hazards—and subsequently transpiled into standard synthesizable Verilog HDL.
+
+---
+
+### Behavioral Simulation: Summation Benchmark
+
+The processor is pre-loaded with an instruction routine that calculates the cumulative sum of integers from $1$ to $9$:
+$$\sum_{i=1}^{9} i = \frac{9 \times 10}{2} = 45 \quad (\text{0x0000002D})$$
+
+Simulating the core in Vivado demonstrates sequential instruction execution, branch evaluation, and register updates until the output register converges to `45`.
+
+<p align="center">
+  <img src="images/d3_rvmyth_sim.png" alt="RVMYTH Behavioral Simulation" width="750"/>
+  <br>
+  <em>Figure 17: Vivado Behavioral Simulation of RVMYTH executing the 1-to-9 summation program.</em>
+</p>
+
+---
+
+### RTL Elaboration & Hardware Telemetry (ILA)
+
+During elaboration, top-level clock, reset, and probe nets are bound to package pins. To enable real-time hardware telemetry without physical oscilloscope probes, an **Integrated Logic Analyzer (ILA)** core is instantiated alongside the processor:
+
+| Standard Elaborated Core | Elaborated Core with Integrated Logic Analyzer (ILA) |
+| :---: | :---: |
+| <img src="images/d3_elaborate_rvmyth.png" width="380"/> | <img src="images/d3_elaborate_rvmyth_with_ila.png" width="380"/> |
+
+*Figure 18: Elaborated RTL schematics: Standard processor core (left) and core instrumented with Xilinx ILA IP (right).*
+
+---
+
+### Logic Synthesis on Artix-7
+
+The design is synthesized using the Vivado Synthesis tool targeting the Artix-7 `xc7a35tcpg236-1` device. Combinational functions map to 6-input LUTs (`LUT6`), and pipelined registers map to flip-flop primitives (`FDRE`).
+
+| Synthesized Processor Schematic | Synthesis Configuration & Timing Metrics |
+| :---: | :---: |
+| <img src="images/d3_rvmyth_synth_sch.png" width="380"/> | <img src="images/d3_rvmyth_synth.png" width="380"/> |
+
+*Figure 19: Technology-mapped gate-level schematic and synthesis constraints for the RVMYTH RISC-V core.*
+
+---
+
+### Physical Implementation: Placement, Routing & Timing Closure
+
+During implementation, the synthesized netlist is placed onto the physical die and interconnect tracks are routed through switch matrices.
+
+| Placed & Routed Die Layout | Detailed Slice & Interconnect Routing |
+| :---: | :---: |
+| <img src="images/d3_rvmyth_impl_design.png" width="380"/> | <img src="images/d3_rvmyth_impl_design2.png" width="380"/> |
+
+*Figure 20: Physical die implementation in Vivado Device View showing placement of ALU, registers, and interconnect routing.*
+
+#### Post-Implementation Timing Summary
+All setup and hold timing paths meet the required specifications with zero setup or hold violations:
+
+<p align="center">
+  <img src="images/d3_rvmyth_impl_design_timing.png" alt="RVMYTH Implementation Timing Summary" width="750"/>
+  <br>
+  <em>Figure 21: Post-Implementation Timing Summary verifying positive slack across the processor core.</em>
+</p>
+
+#### Device Resource Utilization
+The processor consumes modest resources on the XC7A35T die, leaving abundant room for coprocessors or hardware accelerators:
+
+<p align="center">
+  <img src="images/d3_rvmyth_impl_design_utilization.png" alt="RVMYTH Resource Utilization" width="750"/>
+  <br>
+  <em>Figure 22: Hardware utilization report (LUTs, Slice Registers, F7/F8 MUXes) on Artix-7.</em>
+</p>
+
+#### Power Dissipation Analysis
+Dynamic power dissipation accounts for pipeline activity, while static leakage is minimal on the 28nm Artix-7 process:
+
+<p align="center">
+  <img src="images/d3_rvmyth_impl_design_power.png" alt="RVMYTH Power Analysis" width="750"/>
+  <br>
+  <em>Figure 23: On-chip power analysis report for the implemented RVMYTH RISC-V processor.</em>
+</p>
+
+---
