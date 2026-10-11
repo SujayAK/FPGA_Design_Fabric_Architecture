@@ -620,3 +620,83 @@ Power analysis models total static and dynamic power for the counter running on 
 </p>
 
 ---
+
+## Day 5 - Full-Flow RVMYTH RISC-V Mapping on Custom SOFA Fabric
+
+Day 5 represents the culmination of the workshop: mapping the complete **4-stage RISC-V RVMYTH processor core** onto the custom **SkyWater 130nm SOFA FPGA fabric** (`FPGA1212_QLSOFA_HD_PNR`). This validates the complete open-source silicon compilation flow from high-level processor architecture down to physical open-source silicon primitives.
+
+### End-to-End OpenFPGA & VTR Toolchain Pipeline
+
+The entire compilation pipeline executes without any proprietary commercial software:
+```
+  [ RVMYTH TL-Verilog Source ]
+                |
+                v
+  [ Transpiled Verilog HDL ]
+                |
+                v
+  [ Odin II - Elaboration & Netlist Extraction ]
+                |
+                v
+  [ ABC - Boolean Optimization & K-LUT Mapping ]
+                |
+                v
+  [ VPR / OpenFPGA - Cluster Packing, Placement, Routing ]
+                |
+                v
+  [ SOFA 130nm Fabric Bitstream & Post-Impl Netlist ]
+```
+
+---
+
+### Setup & Hold Timing Closure on SOFA Silicon
+
+Achieving timing closure across a multi-stage pipelined processor on a 130nm open-source fabric requires careful static timing analysis:
+- **Setup Slack**: Verifies that register-to-register paths through the ALU and multiplexers complete within the target clock period.
+- **Hold Slack**: Confirms that short data paths (e.g., adjacent pipeline registers) do not cause data contamination across consecutive clock cycles.
+
+| SOFA RVMYTH Setup Timing Slack | SOFA RVMYTH Hold Timing Slack |
+| :---: | :---: |
+| <img src="images/d5_timing_setup.png" width="380"/> | <img src="images/d5_timing_hold.png" width="380"/> |
+
+*Figure 29: Setup and Hold timing slack reports for RVMYTH core mapped onto SOFA 130nm silicon.*
+
+---
+
+### Silicon Area & Logic Resource Utilization
+
+The reports below detail the physical occupancy of RVMYTH logic mapped into SOFA configurable logic elements:
+
+| SOFA Silicon Area Breakdown | Logic Elements & Utilization Summary |
+| :---: | :---: |
+| <img src="images/d5_area.png" width="380"/> | <img src="images/d5_logic_elements.png" width="380"/> |
+
+*Figure 30: SOFA fabric physical utilization and logic element allocation for the 4-stage RISC-V processor.*
+
+---
+
+### Post-Implementation Timing Verification
+
+To confirm that physical placement and routing delays preserve algorithmic execution, the post-implementation Verilog netlist is simulated. The processor correctly completes the 1-to-9 summation routine without timing hazards or racing conditions:
+
+<p align="center">
+  <img src="images/d5_post_impl_sim.png" alt="RVMYTH Post-Implementation Simulation Waveform" width="750"/>
+  <br>
+  <em>Figure 31: Post-implementation simulation waveform confirming correct RISC-V processor computation on SOFA fabric.</em>
+</p>
+
+---
+
+### Comparative Architecture Synthesis: Basys 3 vs. SOFA SkyWater 130nm
+
+| Architectural Feature | Commercial Fabric (Xilinx Artix-7) | Open-Source Fabric (SOFA `FPGA1212`) |
+| :--- | :--- | :--- |
+| **Silicon Technology Node** | TSMC 28nm HPL Process | SkyWater 130nm Open-Source PDK |
+| **Logic Element Architecture** | 6-input LUTs (`LUT6`) with dual flip-flops | 4-input LUTs (`LUT4`) with soft logic clusters |
+| **Dedicated Hard IP** | DSP48E1 slices, 36Kb Dual-Port BRAM, MMCM/PLL | Modular soft adders, shift-register scan chain |
+| **Target Clock Frequency** | 100 MHz – 450+ MHz | Up to 50 MHz |
+| **EDA Toolchain** | Xilinx Vivado (Proprietary) | OpenFPGA + VTR (100% Open-Source) |
+| **Bitstream Transparency** | Proprietary binary format (encrypted) | Fully open bitstream specification & generation |
+| **Silicon Accessibility** | Commercial off-the-shelf purchase | Fully tapeout-ready via Open MPW shuttle (Efabless) |
+
+---
