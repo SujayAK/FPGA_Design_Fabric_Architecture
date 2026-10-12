@@ -700,3 +700,51 @@ To confirm that physical placement and routing delays preserve algorithmic execu
 | **Silicon Accessibility** | Commercial off-the-shelf purchase | Fully tapeout-ready via Open MPW shuttle (Efabless) |
 
 ---
+
+## Repository Structure
+
+```text
+├── .gitignore                      # Git exclusion rules
+├── LICENSE                         # License terms
+├── README.md                       # Comprehensive engineering report & documentation
+├── images/                         # Architectural schematics, floorplans, and waveforms
+│   ├── basys3_board.png
+│   ├── fpga_arch_1.png
+│   ├── openfpga_framework.png
+│   ├── vtr_flow_*.png
+│   └── d5_*.png
+├── scripts/
+│   └── run_vtr_flow.sh             # Automated shell wrapper for running VTR CAD flow
+└── src/
+    ├── README.md                   # Source code & verification documentation
+    ├── rtl/
+    │   └── counter_clk_div.v       # Parameterized 4-bit counter with 100MHz clock divider
+    ├── tb/
+    │   └── tb_counter_clk_div.v    # Simulation testbench with behavioral stimulus
+    └── constraints/
+        └── basys3_master.xdc       # Physical pin mappings and timing constraints for Basys 3
+```
+
+---
+
+## Toolchain & Simulation Setup
+
+### 1. Simulating RTL via Icarus Verilog
+```bash
+iverilog -o sim.out src/rtl/counter_clk_div.v src/tb/tb_counter_clk_div.v
+vvp sim.out
+```
+
+### 2. Running the VTR CAD Flow
+Ensure `$VTR_ROOT` is configured in your shell environment:
+```bash
+chmod +x scripts/run_vtr_flow.sh
+./scripts/run_vtr_flow.sh src/rtl/counter_clk_div.v
+```
+
+### 3. Synthesizing in Xilinx Vivado (Batch Mode)
+```bash
+vivado -mode batch -source scripts/run_synth.tcl
+```
+
+---
