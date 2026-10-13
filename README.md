@@ -748,3 +748,32 @@ vivado -mode batch -source scripts/run_synth.tcl
 ```
 
 ---
+
+## References
+
+1. **VLSI System Design (VSD)**: [VSD FPGA - Fabric, Design and Architecture Workshop](https://www.vlsisystemdesign.com/fpga/)
+2. **OpenFPGA Project**: Tang, X. et al., *OpenFPGA: An Open-source Framework Rapidly Customizing FPGA Architectures*, [OpenFPGA Documentation](https://openfpga.readthedocs.io/en/master/)
+3. **Verilog-to-Routing (VTR)**: Betz, V. & Rose, J., *VPR: A New Packing, Placement and Routing Tool for FPGA Research*, [VTR Documentation](https://docs.verilogtorouting.org/en/latest/)
+4. **SOFA Architecture**: Skywater Opensource FPGAs, [SOFA GitHub Repository](https://github.com/lnis-uofu/SOFA)
+5. **RISC-V International**: *The RISC-V Instruction Set Manual, Volume I: User-Level ISA*, [RISC-V ISA Specs](https://riscv.org/technical/specifications/)
+6. **RVMYTH Core**: 4-Stage Pipelined RISC-V Microprocessor, [RVMYTH Reference](https://github.com/shivanishah269/risc-v-core)
+7. **SkyWater PDK**: SkyWater 130nm Open Source PDK, [SkyWater Technology Foundry](https://github.com/google/skywater-pdk)
+
+---
+
+## Acknowledgements
+
+I express my sincere gratitude to:
+- **[Kunal Ghosh](https://github.com/kunalg123)**, Co-Founder, VLSI System Design (VSD) Corp. Pvt. Ltd., for organizing the workshop, providing comprehensive pedagogical resources, and spearheading open-source silicon adoption in India.
+- **[Dr. Nanditha Rao](https://github.com/nandithaec)**, Assistant Professor at IIIT Bangalore, for instructional guidance throughout the architectural sessions.
+- The open-source semiconductor community behind **OpenFPGA**, **VTR**, and **Efabless** for democratizing hardware design.
+
+---
+
+## Author
+
+**Sujay Kandalkar**  
+*Department of Electrical Engineering*  
+*Indian Institute of Technology Kanpur (IIT Kanpur)*  
+- **GitHub**: [@SujayAK](https://github.com/SujayAK)  
+- **Repository**: [FPGA_Design_Fabric_Architecture](https://github.com/SujayAK/FPGA_Design_Fabric_Architecture)
